@@ -6,14 +6,14 @@ services:
       - 2717:27017
     volumes:
       - mongo_db:/data/db
-  
+
   api:
     build: .
     ports:
       - "8371:8371"
     environment:
       NODE_ENV: "development"
-      MONGO_URI: "mongodb://mongo_db:27017/express-ts-rest-api"
+      MONGO_URI: "mongodb://mongo_db:27017/programming-project"
       MONGO_PASSWORD: ""
       API_VERSION: "0.0.1"
       PORT: "8371"
