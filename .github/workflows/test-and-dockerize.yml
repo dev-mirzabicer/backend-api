@@ -33,7 +33,7 @@ jobs:
               run: npm run test:detectOpen
               env:
                   NODE_ENV: development
-                  MONGO_URI: mongodb://localhost:27017/blg-prjct
+                  MONGO_URI: mongodb://localhost:27017/programming-project
                   MONGO_PASSWORD:
                   API_VERSION: 0.0.1
                   PORT: 8371
@@ -54,4 +54,4 @@ jobs:
               uses: docker/build-push-action@v3
               with:
                   push: true
-                  tags: mirzabicer/blg-prjct:latest
+                  tags: mirzabicer/programming-project:latest
