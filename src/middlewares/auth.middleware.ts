@@ -4,8 +4,28 @@ import { UserRole } from "../constants";
 import { Request, Response, NextFunction } from "express";
 import passport from "passport";
 import { DocumentType } from "@typegoose/typegoose";
-import { User } from "../models/user.model";
+import UserModel, {User} from "../models/user.model";
 import ApiError from "../utils/apiError";
+import { Strategy as JwtStrategy, ExtractJwt } from "passport-jwt";
+
+const options = {
+    jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+    secretOrKey: process.env.JWT_SECRET,
+};
+
+passport.use(new JwtStrategy(options, function(jwt_payload, done) {
+    UserModel.findOne({id: jwt_payload.sub}, function(err: any, user: any) {
+        if (err) {
+            return done(err, false);
+        }
+        if (user) {
+            return done(null, user);
+        } else {
+            return done(null, false);
+            // or you could create a new account
+        }
+    });
+}));
 
 const verification =
     (
