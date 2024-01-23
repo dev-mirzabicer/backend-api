@@ -33,10 +33,15 @@ jobs:
               run: npm run test:detectOpen
               env:
                   NODE_ENV: development
-                  MONGO_URI: mongodb://localhost:27017/programming-project
-                  MONGO_PASSWORD:
+                  MONGO_URI: mongodb+srv://mirzabicerdev:<PASSWORD>@cluster0.y5wdfov.mongodb.net/?retryWrites=true&w=majority
+                  MONGO_PASSWORD: OsTa2012
                   API_VERSION: 0.0.1
                   PORT: 8371
+                  REDIS_HOST: redis-17118.c311.eu-central-1-1.ec2.cloud.redislabs.com
+                  REDIS_PORT: 17118
+                  REDIS_PASSWORD: QO3oRAIuvXVtbuMan6zYNjichHZUWQ6C
+                  JWT_SECRET: ijoiesfkwjowiejioJEWROGFKJRWEIOFG
+                  ACCESS_EXP_MIN: 99999
     dockerize:
         needs: test
         runs-on: ubuntu-latest
