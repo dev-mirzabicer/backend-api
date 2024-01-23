@@ -42,6 +42,7 @@ const getMany = catchAsync(async (req, res, next) => {
 });
 
 const getMe = catchAsync(async (req, res, next) => {
+    res.set("Cache-Control", "no-store");
     res.status(httpStatus.OK).json({
         status: "OK",
         data: { user: req.user },

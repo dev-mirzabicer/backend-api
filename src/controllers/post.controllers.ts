@@ -3,6 +3,13 @@ import hs from "http-status";
 import { postServices } from "../services/";
 import stringify from "../utils/stringify";
 import ApiError from "../utils/apiError";
+import scheduleSave from "../utils/scheduleSave";
+import { DocumentType } from "@typegoose/typegoose";
+import { Request } from "express";
+import { saveDocuments } from "../middlewares";
+
+const generateScheduler = (req: Request) => (doc: DocumentType<any>) =>
+    scheduleSave(req, doc);
 
 const getOne = catchAsync(async (req, res, next) => {
     /**
@@ -35,6 +42,8 @@ const getOne = catchAsync(async (req, res, next) => {
     const post = await postServices.getOne(
         req.params.id,
         stringify(req.query.fields),
+        generateScheduler(req),
+        true,
         req.user,
         multipliers //for analytics
     );
@@ -43,6 +52,7 @@ const getOne = catchAsync(async (req, res, next) => {
         return next(new ApiError("Not found", hs.NOT_FOUND));
     }
 
+    await saveDocuments(req);
     res.status(hs.OK).json({
         status: "OK",
         data: { post },
@@ -50,7 +60,7 @@ const getOne = catchAsync(async (req, res, next) => {
 });
 
 const getMany = catchAsync(async (req, res, next) => {
-    const posts = await postServices.getMany(req.query);
+    const posts = await postServices.getMany(req.params);
 
     res.status(hs.OK).json({
         status: "OK",
@@ -91,10 +101,15 @@ const patch = catchAsync(async (req, res, next) => {
 });
 
 const like = catchAsync(async (req, res, next) => {
-    const post = await postServices.like(req.params.id, req.user);
+    const post = await postServices.like(
+        req.params.id,
+        req.user,
+        generateScheduler(req)
+    );
     if (!post) {
         return next(new ApiError("Not found", hs.NOT_FOUND));
     }
+    await saveDocuments(req);
     res.status(hs.OK).json({
         status: "OK",
         data: { post },
@@ -102,10 +117,15 @@ const like = catchAsync(async (req, res, next) => {
 });
 
 const save = catchAsync(async (req, res, next) => {
-    const post = await postServices.save(req.params.id, req.user);
+    const post = await postServices.save(
+        req.params.id,
+        req.user,
+        generateScheduler(req)
+    );
     if (!post) {
         return next(new ApiError("Not found", hs.NOT_FOUND));
     }
+    await saveDocuments(req);
     res.status(hs.OK).json({
         status: "OK",
         data: { post },
@@ -113,10 +133,15 @@ const save = catchAsync(async (req, res, next) => {
 });
 
 const unlike = catchAsync(async (req, res, next) => {
-    const post = await postServices.unlike(req.params.id, req.user);
+    const post = await postServices.unlike(
+        req.params.id,
+        req.user,
+        generateScheduler(req)
+    );
     if (!post) {
         return next(new ApiError("Not found", hs.NOT_FOUND));
     }
+    await saveDocuments(req);
     res.status(hs.OK).json({
         status: "OK",
         data: { post },
@@ -124,10 +149,15 @@ const unlike = catchAsync(async (req, res, next) => {
 });
 
 const unsave = catchAsync(async (req, res, next) => {
-    const post = await postServices.unsave(req.params.id, req.user);
+    const post = await postServices.unsave(
+        req.params.id,
+        req.user,
+        generateScheduler(req)
+    );
     if (!post) {
         return next(new ApiError("Not found", hs.NOT_FOUND));
     }
+    await saveDocuments(req);
     res.status(hs.OK).json({
         status: "OK",
         data: { post },
@@ -161,8 +191,10 @@ const read = catchAsync(async (req, res, next) => {
         req.user,
         req.body.percent,
         req.body.duration,
+        generateScheduler(req),
         req.body.leftOff
     );
+    await saveDocuments(req);
     res.status(hs.OK).json({
         status: "OK",
         data: { readPost },
@@ -183,8 +215,10 @@ const read = catchAsync(async (req, res, next) => {
 const getNewFeed = catchAsync(async (req, res, next) => {
     const posts = await postServices.getNewFeed(
         req.user,
-        stringify(req.query.shown)
+        stringify(req.query.shown),
+        generateScheduler(req)
     );
+    await saveDocuments(req);
     res.status(hs.OK).json({
         status: "OK",
         data: { posts },
@@ -195,8 +229,10 @@ const getRestFeed = catchAsync(async (req, res, next) => {
     if (!req.user) return next(new ApiError("Please log in", hs.UNAUTHORIZED));
     const posts = await postServices.getRestFeed(
         req.user._id,
-        stringify(req.query.shown)
+        stringify(req.query.shown),
+        generateScheduler(req)
     );
+    await saveDocuments(req);
     res.status(hs.OK).json({
         status: "OK",
         data: { posts },
@@ -205,7 +241,7 @@ const getRestFeed = catchAsync(async (req, res, next) => {
 
 const finishFeed = catchAsync(async (req, res, next) => {
     if (!req.user) return next(new ApiError("Please log in", hs.UNAUTHORIZED));
-    await postServices.finishFeed(req.user._id as string);
+    await postServices.finishFeed((req.user._id || req.user.id) as string);
     res.status(hs.NO_CONTENT).send();
 });
 

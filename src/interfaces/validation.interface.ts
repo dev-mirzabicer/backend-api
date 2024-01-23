@@ -17,7 +17,7 @@ class Validation {
     public bodyForCU: Record<string, Joi.Schema>;
 
     public queryForOne = Joi.object().keys({
-        fields: Joi.string(),
+        fields: Joi.string().optional(),
     });
 
     public getOne = {

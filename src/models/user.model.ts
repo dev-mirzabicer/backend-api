@@ -143,7 +143,7 @@ class User {
             this.preferredCategories = tc;
             this.totalCatWeight = totalWeight;
         }
-        await this.save();
+        // await this.save();
     }
 
     public async readPost(
@@ -159,24 +159,24 @@ class User {
             leftOff,
             duration,
         });
-        await this.save();
+        // await this.save();
     }
 
     public async addSave(this: DocumentType<User>, postId: string) {
         if (!this.savedPosts) this.savedPosts = [];
         if (this.savedPosts.includes(postId)) return false;
-        this.savedPosts.push(postId);
-        await this.save();
+        this.savedPosts.push(postId.toString());
+        // await this.save();
         return true;
     }
 
     public async deleteSave(this: DocumentType<User>, postId: string) {
         if (!this.savedPosts) return false;
-        const index = this.savedPosts?.indexOf(postId);
-        if (index && index > -1) {
+        const index = this.savedPosts?.indexOf(postId.toString());
+        if (index > -1) {
             this.savedPosts?.splice(index, 1);
         } else return false;
-        await this.save();
+        // await this.save();
         return true;
     }
 
@@ -184,13 +184,17 @@ class User {
         if (!this.likedPosts) this.likedPosts = new Map<string, boolean>();
         if (this.likedPosts.get(postId)) return false;
         this.likedPosts.set(postId, true);
-        await this.save();
+        // await this.save();
         return true;
     }
     public async deleteLike(this: DocumentType<User>, postId: string) {
-        if (!this.likedPosts) return false;
-        if (!this.likedPosts.delete(postId)) return false;
-        await this.save();
+        // console.log(this);
+        if (!this.likedPosts) {
+            // console.log("asda");
+            return false;
+        }
+        this.likedPosts.delete(postId);
+        // await this.save();
         return true;
     }
 }

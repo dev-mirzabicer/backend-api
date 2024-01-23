@@ -7,6 +7,7 @@ import {
 } from "@typegoose/typegoose";
 import { Author } from "./author.model";
 import { TagCat } from "../constants";
+import scheduleSave from "utils/scheduleSave";
 
 interface PreferringThing {
     name: string;
@@ -45,7 +46,7 @@ class Post {
     @prop({ required: true, default: new Date() })
     public date!: Date;
 
-    @prop({ type: () => [String], required: true, maxlength: 8 })
+    @prop({ type: () => [String], required: true })
     public tags!: string[];
 
     @prop({ default: 1 })
@@ -84,17 +85,18 @@ class Post {
     @prop({ default: 0 })
     public preferredByTagWeight?: number;
 
-    @prop({ type: () => [String], required: true, maxlength: 3 })
+    @prop({ type: () => [String], required: true })
     public categories!: string[];
 
-    @prop({ required: true })
-    public image!: string;
+    @prop({ required: false })
+    public image?: string;
 
     @prop({ default: 0 })
     public totalDurationRead?: number;
 
     public get maxDurationForScoring() {
         //(letter count / ((average read word in a minute)*average turkish word length))
+        // console.log(this);
         return this.content.length / (150 * 7);
     }
 
@@ -104,7 +106,7 @@ class Post {
         } else {
             this.likes = 1;
         }
-        this.save();
+        // this.save();
     }
 
     public async addSave(this: DocumentType<Post>) {
@@ -113,7 +115,7 @@ class Post {
         } else {
             this.saves = 1;
         }
-        this.save();
+        // this.save();
     }
 
     public async deleteLike(this: DocumentType<Post>) {
@@ -122,7 +124,7 @@ class Post {
         } else {
             this.likes = 0;
         }
-        this.save();
+        // this.save();
     }
 
     public async deleteSave(this: DocumentType<Post>) {
@@ -131,7 +133,7 @@ class Post {
         } else {
             this.saves = 0;
         }
-        this.save();
+        // this.save();
     }
 
     public async addView(this: DocumentType<Post>) {
@@ -140,7 +142,7 @@ class Post {
         } else {
             this.views = 1;
         }
-        this.save();
+        // this.save();
     }
 
     public async addSeen(this: DocumentType<Post>) {
@@ -149,7 +151,7 @@ class Post {
         } else {
             this.seen = 3;
         }
-        this.save();
+        // this.save();
     }
 
     public async addPreferredBy(
@@ -186,7 +188,7 @@ class Post {
             this.preferredByCat = tc;
             this.preferredByCatWeight = totalWeight;
         }
-        await this.save();
+        // await this.save();
     }
 }
 

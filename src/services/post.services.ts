@@ -8,8 +8,8 @@ import ApiError from "../utils/apiError";
 import httpStatus from "http-status";
 import dayjs from "dayjs";
 import { TagCat } from "../constants";
-import AnalyticsModel from "../models/analytics.model";
-import dfd from "danfojs-node";
+// import AnalyticsModel from "../models/analytics.model";
+import * as dfd from "danfojs-node";
 import log from "../utils/logger";
 import { redisCli } from "../";
 
@@ -22,34 +22,62 @@ type Multipliers = {
     relation?: number;
 };
 
-const prefer = (
+const prefer = async (
     user: DocumentType<User>,
     post: DocumentType<Post>,
     multiplier: number,
     remove = false
 ) => {
-    user.preferredTags?.forEach(async (tag) => {
-        await post.addPreferredBy(
-            tag.name,
-            tag.weight * multiplier,
-            TagCat.TAG,
-            remove
-        );
-    });
-    user.preferredCategories?.forEach(async (cat) => {
-        await post.addPreferredBy(
-            cat.name,
-            cat.weight * multiplier,
-            TagCat.CAT,
-            remove
-        );
-    });
-    post.tags.forEach(async (tag) => {
-        await user.preferTagOrCat(tag, TagCat.TAG, multiplier, remove);
-    });
-    post.categories.forEach(async (cat) => {
-        await user.preferTagOrCat(cat, TagCat.CAT, multiplier, remove);
-    });
+    // user.preferredTags?.forEach(async (tag) => {
+    //     await post.addPreferredBy(
+    //         tag.name,
+    //         tag.weight * multiplier,
+    //         TagCat.TAG,
+    //         remove
+    //     );
+    // });
+    if (user.preferredTags)
+        for (const [_, value] of user.preferredTags) {
+            await post.addPreferredBy(
+                value.name,
+                value.weight * multiplier,
+                TagCat.TAG,
+                remove
+            );
+        }
+    // user.preferredCategories?.forEach(async (cat) => {
+    //     await post.addPreferredBy(
+    //         cat.name,
+    //         cat.weight * multiplier,
+    //         TagCat.CAT,
+    //         remove
+    //     );
+    // });
+    if (user.preferredCategories)
+        for (const [_, value] of user.preferredCategories) {
+            await post.addPreferredBy(
+                value.name,
+                value.weight * multiplier,
+                TagCat.CAT,
+                remove
+            );
+        }
+    // await post.save();
+    // post.tags.forEach(async (tag) => {
+    //     await user.preferTagOrCat(tag, TagCat.TAG, multiplier, remove);
+    // });
+    // post.categories.forEach(async (cat) => {
+    //     await user.preferTagOrCat(cat, TagCat.CAT, multiplier, remove);
+    // });
+    if (post.tags)
+        for (const tag of post.tags) {
+            await user.preferTagOrCat(tag, TagCat.TAG, multiplier, remove);
+        }
+    if (post.categories)
+        for (const cat of post.categories) {
+            await user.preferTagOrCat(cat, TagCat.CAT, multiplier, remove);
+        }
+    // await user.save();
 };
 
 const calculateFreshness = (x: number) => {
@@ -85,28 +113,31 @@ const addAnalytics = async (
     userId: string | undefined, //probably won't need the user but saving just in case for the future
     postId: string //need the post to effectively change the clicked situation if the user clicks
 ) => {
-    if (analyticsData.multipliers.relation === 1)
-        analyticsData.multipliers.relation = undefined;
-    //if the user is not signed in and they rejected the necessary cookies,
-    // then the relation will be undefined and will be set to the mean of the other data in the AI code.
-    const existingAnalytics = await AnalyticsModel.findOne({
-        post: postId,
-        user: userId,
-    });
-    if (!existingAnalytics)
-        await AnalyticsModel.create({
-            ...analyticsData,
-            user: userId,
-            postId,
-        });
-    else {
-        await existingAnalytics.update(analyticsData);
-    }
+    return; //TODO
+    // if (analyticsData.multipliers.relation === 1)
+    //     analyticsData.multipliers.relation = undefined;
+    // //if the user is not signed in and they rejected the necessary cookies,
+    // // then the relation will be undefined and will be set to the mean of the other data in the AI code.
+    // const existingAnalytics = await AnalyticsModel.findOne({
+    //     post: postId,
+    //     user: userId,
+    // });
+    // if (!existingAnalytics)
+    //     await AnalyticsModel.create({
+    //         ...analyticsData,
+    //         user: userId,
+    //         postId,
+    //     });
+    // else {
+    //     await existingAnalytics.update(analyticsData);
+    // }
 };
 
 const getOne = async (
     id: string,
     fields = "-__v",
+    scheduler: (doc: DocumentType<unknown>) => void,
+    clicked: boolean,
     user: DocumentType<User> | undefined = undefined,
     multipliers: Multipliers | undefined = undefined
 ) => {
@@ -117,14 +148,17 @@ const getOne = async (
         .limit()
         .query();
     if (!post) throw new ApiError("No post found", httpStatus.NOT_FOUND);
+    if (!clicked) return post;
     if (!user?.readPosts?.get(id)) await post.addView();
     if (user) {
         await user.readPost(post._id, 1, 1, 0);
-        prefer(user, post, 1);
+        await prefer(user, post, 1);
+        scheduler(user);
     }
     if (multipliers) {
         await addAnalytics({ multipliers, clicked: true }, user?._id, id);
     }
+    scheduler(post);
     return post;
 };
 
@@ -133,20 +167,23 @@ const read = async (
     user: DocumentType<User>,
     percent: number,
     duration: number,
+    scheduler: (doc: DocumentType<unknown>) => void,
     leftOff: number | undefined
 ) => {
     const post = await PostModel.findById(id);
     if (!post) throw new ApiError("No post found", httpStatus.NOT_FOUND);
     const readPost = user.readPosts?.get(id);
-    prefer(user, post, (percent - (readPost?.readPercent || 0)) / 100);
+    await prefer(user, post, (percent - (readPost?.readPercent || 0)) / 100);
 
     if (duration > post.maxDurationForScoring)
         duration = post.maxDurationForScoring;
     if (post.totalDurationRead)
         post.totalDurationRead += duration - (readPost?.duration || 0);
-    prefer(user, post, (3 * duration) / post.maxDurationForScoring);
+    await prefer(user, post, (3 * duration) / post.maxDurationForScoring);
     await user.readPost(id, percent, duration, leftOff);
-    await post.save();
+    // await post.save();
+    scheduler(post);
+    scheduler(user);
     return readPost;
 };
 
@@ -176,7 +213,8 @@ const getMany = async (query: Record<string, any>) => {
 
 const getNewFeed = async (
     user: DocumentType<User> | undefined | null,
-    shown: number
+    shown: number,
+    scheduler: (doc: DocumentType<unknown>) => void
 ) => {
     // const postsWithMultiplr: {
     //     post: DocumentType<Post>;
@@ -190,8 +228,9 @@ const getNewFeed = async (
         "readTimeScore",
         "relation",
     ];
-    const postsDf = new dfd.DataFrame([], { columns });
-    for await (const post of PostModel.find().select("-content")) {
+    const data = [];
+    const indexes = [];
+    for await (const post of PostModel.find()) {
         const likesRatio =
             Math.pow(post.likes || 1, 1 / 2) /
             Math.pow(post.views || 100, 1 / 3);
@@ -207,20 +246,43 @@ const getNewFeed = async (
         const relation = user ? calculateRelation(user, post) * 30 : 1;
         // const weight =
         //     likesRatio * savesRatio * freshness * trending * relation;
-        const multipliers = [
+        const multipliers = {
             likesRatio,
             savesRatio,
             freshness,
             trending,
             readTimeScore,
             relation,
-        ];
+        };
         // postsWithMultiplr.push({
         //     post,
         //     // weight,
         //     multipliers,
         // });
-        postsDf.append(multipliers, post._id, { inplace: true });
+        // if (typeof postsDf == "undefined") {
+        //     postsDf = new dfd.DataFrame([Object.values(multipliers)], {
+        //         columns,
+        //         index: [post._id as string],
+        //     });
+        //     console.log(postsDf);
+        // } else if ((postsDf as dfd.DataFrame) instanceof dfd.DataFrame) {
+        //     const appendPostsDf = new dfd.DataFrame(
+        //         [Object.values(multipliers)],
+        //         {
+        //             columns,
+        //             index: [post._id],
+        //         }
+        //     );
+        //     postsDf = dfd.concat({
+        //         dfList: [
+        //             postsDf as dfd.DataFrame,
+        //             appendPostsDf as dfd.DataFrame,
+        //         ],
+        //         axis: 0,
+        //     }) as dfd.DataFrame;
+        // }
+        data.push(Object.values(multipliers));
+        indexes.push(post._id);
         //----
         //hKpxas92JDIlkca$kas
         // post.addSeen();
@@ -230,6 +292,11 @@ const getNewFeed = async (
         //     post._id
         // );
     }
+    const postsDf = new dfd.DataFrame(data, {
+        columns,
+        index: indexes,
+    });
+    if (typeof postsDf == "undefined") return [];
     const scaler = new dfd.StandardScaler();
     scaler.fitTransform(postsDf);
     const weights = postsDf.apply(
@@ -244,7 +311,11 @@ const getNewFeed = async (
         shown,
         postsDf.index.length
     ) as string[];
-    const shownPosts = postsDf.iloc({ rows: [`0:${shown}`] });
+    shown = shown <= postsDf.shape[0] ? shown : postsDf.shape[0];
+    if (shown <= 0) return [];
+    const shownPosts = postsDf
+        .iloc({ rows: [`0:${shown}`] })
+        .sortValues("weight", { ascending: false });
     const shownPostIds = shownPosts.index;
     const shownPostsList: DocumentType<Post>[] = [];
     for (const postId of shownPostIds) {
@@ -272,17 +343,22 @@ const getNewFeed = async (
             user?._id,
             postId as string
         );
+        if (user) {
+            await prefer(user, post, 1, true);
+            scheduler(user);
+        }
+        scheduler(post);
     }
     if (user) {
         await redisCli?.del(user._id as string);
         nextPostIds.forEach(async (postId) => {
             const multipliers: Multipliers = {
-                likesRatio: postsDf.at(postId, "likesRatio") as number,
-                savesRatio: postsDf.at(postId, "savesRatio") as number,
-                freshness: postsDf.at(postId, "freshness") as number,
-                trending: postsDf.at(postId, "trending") as number,
-                readTimeScore: postsDf.at(postId, "readTimeScore") as number,
-                relation: postsDf.at(postId, "likesRatio") as number,
+                likesRatio: postsDf?.at(postId, "likesRatio") as number,
+                savesRatio: postsDf?.at(postId, "savesRatio") as number,
+                freshness: postsDf?.at(postId, "freshness") as number,
+                trending: postsDf?.at(postId, "trending") as number,
+                readTimeScore: postsDf?.at(postId, "readTimeScore") as number,
+                relation: postsDf?.at(postId, "likesRatio") as number,
             };
             const postToBePushed = {
                 ...multipliers,
@@ -293,11 +369,16 @@ const getNewFeed = async (
                 JSON.stringify(postToBePushed)
             );
         });
+        scheduler(user);
     }
     return shownPostsList;
 };
 
-const getRestFeed = async (userId: string, shown: number) => {
+const getRestFeed = async (
+    userId: string,
+    shown: number,
+    scheduler: (doc: DocumentType<unknown>) => void
+) => {
     const postsStr = await redisCli?.lPopCount(userId, shown);
     if (!postsStr) return [];
     const postDocs: DocumentType<Post>[] = [];
@@ -337,12 +418,13 @@ const getRestFeed = async (userId: string, shown: number) => {
             post.postId
         );
         postDocs.push(postDoc);
+        scheduler(postDoc);
     }
     return postDocs;
 };
 
 const finishFeed = async (userId: string) => {
-    await redisCli?.del(userId);
+    await redisCli?.del(`${userId}`);
 };
 
 // const seeFeed = (
@@ -403,55 +485,87 @@ const patch = async (
     return post;
 };
 
-const like = async (id: string, user: DocumentType<User> | undefined) => {
+const like = async (
+    id: string,
+    user: DocumentType<User> | undefined,
+    scheduler: (doc: DocumentType<unknown>) => void
+) => {
     if (!user) throw new ApiError("Not logged in", httpStatus.UNAUTHORIZED);
     const foundPost = await PostModel.findById(id);
     if (!user || !foundPost)
         throw new ApiError("No post or user found", httpStatus.NOT_FOUND);
     if (await user.addLike(id)) {
         await foundPost.addLike();
-        prefer(user, foundPost, 1);
+        await prefer(user, foundPost, 1);
     }
+    scheduler(foundPost);
+    scheduler(user);
     return foundPost;
 };
 
-const save = async (id: string, user: DocumentType<User> | undefined) => {
+const save = async (
+    id: string,
+    user: DocumentType<User> | undefined,
+    scheduler: (doc: DocumentType<unknown>) => void
+) => {
     if (!user) throw new ApiError("Not logged in", httpStatus.UNAUTHORIZED);
     // const foundUser = await UserModel.findById(user._id);
     const foundPost = await PostModel.findById(id);
     if (!user || !foundPost)
         throw new ApiError("No post or user found", httpStatus.NOT_FOUND);
     (await user.addSave(foundPost._id)) && (await foundPost.addSave());
+    scheduler(foundPost);
+    scheduler(user);
     return foundPost;
 };
 
-const unlike = async (id: string, user: DocumentType<User> | undefined) => {
+const unlike = async (
+    id: string,
+    user: DocumentType<User> | undefined,
+    scheduler: (doc: DocumentType<unknown>) => void
+) => {
     if (!user) throw new ApiError("Not logged in", httpStatus.UNAUTHORIZED);
     const foundPost = await PostModel.findById(id);
     if (!user || !foundPost)
         throw new ApiError("No post or user found", httpStatus.NOT_FOUND);
-    if (await user.deleteLike(foundPost._id)) {
+    if (await user.deleteLike(foundPost._id.toString())) {
         await foundPost.deleteLike();
-        prefer(user, foundPost, 1, true);
+        await prefer(user, foundPost, 1, true);
+    } else {
+        throw new ApiError("Post isn't liked", httpStatus.BAD_REQUEST);
     }
+    scheduler(foundPost);
+    scheduler(user);
     return foundPost;
 };
 
-const unsave = async (id: string, user: DocumentType<User> | undefined) => {
+const unsave = async (
+    id: string,
+    user: DocumentType<User> | undefined,
+    scheduler: (doc: DocumentType<unknown>) => void
+) => {
     if (!user) throw new ApiError("Not logged in", httpStatus.UNAUTHORIZED);
     const foundPost = await PostModel.findById(id);
     if (!user || !foundPost)
         throw new ApiError("No post or user found", httpStatus.NOT_FOUND);
-    (await user.deleteSave(foundPost._id)) && (await foundPost.deleteSave());
+    let yes;
+    (await user.deleteSave(foundPost._id)) &&
+        (() => (yes = true))() &&
+        (await foundPost.deleteSave());
+
+    if (!yes) throw new ApiError("Post isn't saved", httpStatus.BAD_REQUEST);
+
+    scheduler(user);
+    scheduler(foundPost);
     return foundPost;
 };
 
 const getLikes = async (id: string) => {
-    return getOne(id, "likes");
+    return getOne(id, "likes", (_: any) => undefined, false);
 };
 
 const getSaves = async (id: string) => {
-    return getOne(id, "saves");
+    return getOne(id, "saves", (_: any) => undefined, false);
 };
 
 export default {

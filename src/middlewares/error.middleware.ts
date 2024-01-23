@@ -66,6 +66,7 @@ class Handler {
             error: this.error,
             stack: this.error.stack,
         });
+        console.log(this.error.stack);
         return;
     }
     sendProd(res: Response) {

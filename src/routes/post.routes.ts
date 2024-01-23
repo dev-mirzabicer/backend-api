@@ -16,6 +16,24 @@ router
         validate(postValidation.post),
         postControllers.post
     );
+
+router
+    .route("/feed") //TODO not using auth here, but may use in the future
+    .get(validate(postValidation.more?.getNewFeed), postControllers.getNewFeed);
+
+router
+    .route("/feed/current")
+    .get(
+        auth(),
+        validate(postValidation.more?.getRestFeed),
+        postControllers.getRestFeed
+    )
+    .delete(
+        auth(),
+        validate(postValidation.more?.finishFeed),
+        postControllers.finishFeed
+    );
+
 router
     .route("/:id")
     .get(validate(postValidation.getOne), postControllers.getOne)
@@ -56,23 +74,6 @@ router
         postControllers.getRead
     )
     .post(auth(), validate(postValidation.more?.read), postControllers.read);
-
-router
-    .route("/feed") //TODO not using auth here, but may use in the future
-    .get(validate(postValidation.more?.getNewFeed), postControllers.getNewFeed);
-
-router
-    .route("/feed/current")
-    .get(
-        auth(),
-        validate(postValidation.more?.getRestFeed),
-        postControllers.getRestFeed
-    )
-    .delete(
-        auth(),
-        validate(postValidation.more?.finishFeed),
-        postControllers.finishFeed
-    );
 
 const postRoutes: ApiRouter = { path: "post", router };
 

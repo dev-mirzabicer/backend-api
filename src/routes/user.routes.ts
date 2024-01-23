@@ -11,20 +11,6 @@ const router = Router();
 router.get("/", validate(userValidation.getMany), userControllers.getMany);
 
 router
-    .route("/:id")
-    .get(validate(userValidation.getOne), userControllers.getOne)
-    .patch(
-        auth(UserRole.ADMIN),
-        validate(userValidation.more?.changeRole),
-        userControllers.changeRole
-    )
-    .delete(
-        auth(UserRole.ADMIN),
-        validate(userValidation.deleteOne),
-        userControllers.deleteOne
-    );
-
-router
     .route("/me")
     .get(auth(), validate(userValidation.more?.getMe), userControllers.getMe)
     .patch(
@@ -36,6 +22,20 @@ router
         auth(),
         validate(userValidation.more?.deleteMe),
         userControllers.deleteMe
+    );
+
+router
+    .route("/:id")
+    .get(validate(userValidation.getOne), userControllers.getOne)
+    .patch(
+        auth(UserRole.ADMIN),
+        validate(userValidation.more?.changeRole),
+        userControllers.changeRole
+    )
+    .delete(
+        auth(UserRole.ADMIN),
+        validate(userValidation.deleteOne),
+        userControllers.deleteOne
     );
 
 const userRoutes: ApiRouter = { path: "user", router };

@@ -22,8 +22,12 @@ const validate = (
 
         const validSchema = pick(schema, ["params", "query", "body"]);
 
+        // console.log(validSchema);
+
         //pqb = params/query/body
         const pqb = pick(req, Object.keys(validSchema));
+
+        // console.log(pqb);
 
         const { value, error } = Joi.compile(validSchema).validate(
             pqb,

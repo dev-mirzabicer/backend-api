@@ -16,11 +16,11 @@ userValidation.more = {
     patchMe: {
         body: Joi.object().keys({
             //username: ...
-            password: JoiConstants.PASSWORD,
-            avatar: Joi.string(), //maybe same for avatar? idk
-            preferredTags: Joi.array().items(Joi.string()),
-            preferredCategories: Joi.array().items(Joi.string()),
-            name: JoiConstants.NAME,
+            password: JoiConstants.PASSWORD.optional(),
+            avatar: Joi.string().optional(), //maybe same for avatar? idk
+            // preferredTags: Joi.object().keys({}).optional(),
+            // preferredCategories: Joi.array().items(Joi.string()).optional(),
+            name: JoiConstants.NAME.optional(),
         }),
     },
     getMe: {

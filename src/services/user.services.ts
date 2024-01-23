@@ -30,7 +30,7 @@ const getMany = async (query: Record<string, any>) => {
 };
 
 const getOneByEmail = async (email: string) => {
-    return UserModel.findOne({ email });
+    return UserModel.findOne({ email }).select("+password");
 };
 
 const patch = async (id: string, userBody: Record<any, any>) => {

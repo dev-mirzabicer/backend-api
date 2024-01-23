@@ -9,7 +9,7 @@ const authValidation = {
             name: JoiConstants.NAME.required(),
             email: JoiConstants.EMAIL.required(),
             password: JoiConstants.PASSWORD.required(),
-            avatar: Joi.string(),
+            // avatar: Joi.string().optional(),
         }),
     },
     login: {
